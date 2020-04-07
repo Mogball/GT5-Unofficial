@@ -45,17 +45,36 @@ public abstract class GT_MetaTileEntity_Hatch extends GT_MetaTileEntity_BasicTan
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, byte aSide, byte aFacing, byte aColorIndex, boolean aActive, boolean aRedstone) {
         int textureIndex=actualTexture|(mTexturePage<<7);//Shift seven since one page is 128 textures!
         int texturePointer=(byte)(actualTexture&0x7F);//just to be sure, from my testing the 8th bit cannot be set clientside
-        return aSide != aFacing ?
-                textureIndex > 0 ?
-                        new ITexture[]{Textures.BlockIcons.casingTexturePages[mTexturePage][texturePointer]} :
-                        new ITexture[]{Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]} :
-                textureIndex > 0 ?
-                        aActive ?
-                                getTexturesActive(Textures.BlockIcons.casingTexturePages[mTexturePage][texturePointer]) :
-                                getTexturesInactive(Textures.BlockIcons.casingTexturePages[mTexturePage][texturePointer]) :
-                        aActive ?
-                                getTexturesActive(Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]) :
-                                getTexturesInactive(Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]);
+        if (aSide != aFacing) {
+            if (textureIndex > 0) {
+                if (Textures.BlockIcons.casingTexturePages[mTexturePage] == null) {
+                    return new ITexture[]{Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]};
+                }
+                return new ITexture[]{Textures.BlockIcons.casingTexturePages[mTexturePage][texturePointer]};
+            } else {
+                return new ITexture[]{Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]};
+            }
+        } else {
+            if (textureIndex > 0) {
+                if (aActive) {
+                    if (Textures.BlockIcons.casingTexturePages[mTexturePage] == null) {
+                        return getTexturesActive(Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]);
+                    }
+                    return getTexturesActive(Textures.BlockIcons.casingTexturePages[mTexturePage][texturePointer]);
+                } else {
+                    if (Textures.BlockIcons.casingTexturePages[mTexturePage] == null) {
+                        return getTexturesInactive(Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]);
+                    }
+                    return getTexturesInactive(Textures.BlockIcons.casingTexturePages[mTexturePage][texturePointer]);
+                }
+            } else {
+                if (aActive) {
+                    return getTexturesActive(Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]);
+                } else {
+                    return getTexturesInactive(Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1]);
+                }
+            }
+        }
     }
 
     @Override
@@ -77,13 +96,13 @@ public abstract class GT_MetaTileEntity_Hatch extends GT_MetaTileEntity_BasicTan
     }
 
     /**
-     * 
+     *
      * @param textureIndex
      * Index between 0-127.
      * Add 128 per page, if texture index is not on first page.
-     * 
+     *
      */
-    
+
     public final void updateTexture(int textureIndex){
         onValueUpdate((byte) textureIndex);
         onTexturePageUpdate((byte) (textureIndex>>7));
