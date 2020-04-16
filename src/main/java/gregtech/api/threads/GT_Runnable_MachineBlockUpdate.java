@@ -1,5 +1,6 @@
 package gregtech.api.threads;
 
+import gregtech.GT_Mod;
 import gregtech.api.GregTech_API;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.interfaces.tileentity.IMachineBlockUpdateable;
@@ -14,46 +15,80 @@ import net.minecraft.world.World;
 
 import java.util.Set;
 import java.util.HashSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 public class GT_Runnable_MachineBlockUpdate implements Runnable {
-    private final int mX, mY, mZ;
-    private final World mWorld;
-    private final Set<ChunkPosition> mVisited;
+    //used by runner thread
+    private final int x, y, z;
+    private final World world;
+    private final Set<ChunkPosition> visited = new HashSet<>(80);
 
-    public GT_Runnable_MachineBlockUpdate(World aWorld, int aX, int aY, int aZ) {
-        mWorld = aWorld;
-        mX = aX;
-        mY = aY;
-        mZ = aZ;
-        mVisited = new HashSet<ChunkPosition>(80);
+    //Threading
+    private static final ThreadFactory THREAD_FACTORY= r -> {
+        Thread thread=new Thread(r);
+        thread.setName("GT_MachineBlockUpdate");
+        return thread;
+    };
+    private static ExecutorService EXECUTOR_SERVICE;
+
+    //This class should never be initiated outside of this class!
+    private GT_Runnable_MachineBlockUpdate(World aWorld, int aX, int aY, int aZ) {
+        this.world = aWorld;
+        this.x = aX;
+        this.y = aY;
+        this.z = aZ;
+    }
+
+    /**
+     * If the thread is idle, sets new values and remove the idle flag, otherwise, queue the cooridinates.
+     */
+    public static void setMachineUpdateValues(World aWorld, int aX, int aY, int aZ) {
+        EXECUTOR_SERVICE.submit(new GT_Runnable_MachineBlockUpdate(aWorld,aX,aY,aZ));
+    }
+
+    public static void initExecutorService() {
+        EXECUTOR_SERVICE =  Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),THREAD_FACTORY);
+    }
+
+    public static void shutdownExecutorService() {
+        EXECUTOR_SERVICE.shutdown();
+        try {
+            EXECUTOR_SERVICE.awaitTermination(60, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            GT_Mod.GT_FML_LOGGER.error("Well this interruption got interrupted...", e);
+        }
+        //terminates executor permanently
+        EXECUTOR_SERVICE.shutdownNow();
     }
 
     private boolean shouldRecurse(TileEntity aTileEntity, int aX, int aY, int aZ) {
-        if (aTileEntity == null)
-            return false;
+        //no check on IGregTechTileEntity as it should call the underlying meta tile isMachineBlockUpdateRecursive
+        //if (aTileEntity instanceof IGregTechTileEntity) {
+        //    return ((IGregTechTileEntity) aTileEntity).isMachineBlockUpdateRecursive();
+        //}
+        return (aTileEntity instanceof IMachineBlockUpdateable &&
+                ((IMachineBlockUpdateable) aTileEntity).isMachineBlockUpdateRecursive()) ||
+                GregTech_API.isMachineBlock(world.getBlock(aX, aY, aZ), world.getBlockMetadata(aX, aY, aZ));
+    }
 
-        if (aTileEntity instanceof IGregTechTileEntity) {
-            // Stop recursion on GregTech cables, item pipes, and fluid pipes
-            IMetaTileEntity tMetaTileEntity = ((IGregTechTileEntity) aTileEntity).getMetaTileEntity();
-            if ((tMetaTileEntity instanceof GT_MetaPipeEntity_Cable) ||
-                (tMetaTileEntity instanceof GT_MetaPipeEntity_Fluid) ||
-                (tMetaTileEntity instanceof GT_MetaPipeEntity_Item))
-                return false;
+    private void causeUpdate(TileEntity tileEntity){
+        //no check for IGregTechTileEntity as it should call the underlying meta tile onMachineBlockUpdate
+        if (tileEntity instanceof IMachineBlockUpdateable) {
+            ((IMachineBlockUpdateable) tileEntity).onMachineBlockUpdate();
         }
-
-        return (aTileEntity instanceof IMachineBlockUpdateable) ||
-            GregTech_API.isMachineBlock(mWorld.getBlock(aX, aY, aZ), mWorld.getBlockMetadata(aX, aY, aZ));
     }
 
     private void stepToUpdateMachine(int aX, int aY, int aZ) {
-        if (!mVisited.add(new ChunkPosition(aX, aY, aZ)))
+        if (!visited.add(new ChunkPosition(aX, aY, aZ)))
             return;
+        TileEntity tTileEntity = world.getTileEntity(aX, aY, aZ);
 
-        TileEntity tTileEntity = mWorld.getTileEntity(aX, aY, aZ);
-        if (tTileEntity != null && tTileEntity instanceof IMachineBlockUpdateable)
-            ((IMachineBlockUpdateable) tTileEntity).onMachineBlockUpdate();
+        causeUpdate(tTileEntity);
 
-        if (mVisited.size() < 5 || shouldRecurse(tTileEntity, aX, aY, aZ)) {
+        if (visited.size() < 5 || shouldRecurse(tTileEntity, aX, aY, aZ)) {
             stepToUpdateMachine(aX + 1, aY, aZ);
             stepToUpdateMachine(aX - 1, aY, aZ);
             stepToUpdateMachine(aX, aY + 1, aZ);
@@ -66,7 +101,33 @@ public class GT_Runnable_MachineBlockUpdate implements Runnable {
     @Override
     public void run() {
         try {
-            stepToUpdateMachine(mX, mY, mZ);
-        } catch (Throwable e) {/**/}
+            stepToUpdateMachine(x, y, z);
+        } catch (Exception e) {
+            GT_Mod.GT_FML_LOGGER.error("Well this update was broken... " + new Coordinates(x,y,z,world), e);
+        }
+    }
+
+    public static class Coordinates {
+        public final int mX;
+        public final int mY;
+        public final int mZ;
+        public final World mWorld;
+
+        public Coordinates(int mX, int mY, int mZ, World mWorld) {
+            this.mX = mX;
+            this.mY = mY;
+            this.mZ = mZ;
+            this.mWorld = mWorld;
+        }
+
+        @Override
+        public String toString() {
+            return "Coordinates{" +
+                    "mX=" + mX +
+                    ", mY=" + mY +
+                    ", mZ=" + mZ +
+                    ", mWorld=" + mWorld.getProviderName()+ " @dimId " + mWorld.provider.dimensionId +
+                    '}';
+        }
     }
 }

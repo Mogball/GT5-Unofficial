@@ -13,6 +13,7 @@ import gregtech.api.interfaces.internal.IGT_Mod;
 import gregtech.api.objects.GT_ChunkManager;
 import gregtech.api.objects.ItemData;
 import gregtech.api.objects.XSTR;
+import gregtech.api.threads.GT_Runnable_MachineBlockUpdate;
 import gregtech.api.util.*;
 import gregtech.common.GT_DummyWorld;
 import gregtech.common.GT_Network;
@@ -1183,6 +1184,8 @@ public class GT_Mod implements IGT_Mod {
         } catch (Throwable e) {e.printStackTrace(GT_Log.err);}
         if (GT_Values.debugChunkloaders)
             aEvent.registerServerCommand(new GT_ChunkManager.DebugCommand());
+        //Sets a new Machine Block Update Thread everytime a world is loaded
+        GT_Runnable_MachineBlockUpdate.initExecutorService();
     }
 
     @Mod.EventHandler
@@ -1290,6 +1293,8 @@ public class GT_Mod implements IGT_Mod {
                 tRunnable.run();
             }
         } catch (Throwable e) {e.printStackTrace(GT_Log.err);}
+        //Interrupt IDLE Threads to close down cleanly
+        GT_Runnable_MachineBlockUpdate.shutdownExecutorService();
     }
 
     public boolean isServerSide() {
