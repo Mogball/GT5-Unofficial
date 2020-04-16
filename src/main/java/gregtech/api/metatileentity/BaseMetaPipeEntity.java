@@ -50,7 +50,7 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
     public byte mConnections = 0;
     protected MetaPipeEntity mMetaTileEntity;
     private byte[] mSidedRedstone = new byte[]{0, 0, 0, 0, 0, 0};
-    private int[] mCoverSides = new int[]{0, 0, 0, 0, 0, 0}, mCoverData = new int[]{0, 0, 0, 0, 0, 0}, mTimeStatistics = new int[GregTech_API.TICKS_FOR_LAG_AVERAGING];
+    private int[] mCoverSides = new int[]{0, 0, 0, 0, 0, 0}, mCoverData = new int[]{0, 0, 0, 0, 0, 0}, mTimeStatistics = new int[0];
     private boolean mInventoryChanged = false, mWorkUpdate = false, mWorks = true, mNeedsUpdate = true, mNeedsBlockUpdate = true, mSendClientData = false;
     private boolean mCheckConnections = false;
     private byte mColor = 0, oColor = 0, mStrongRedstone = 0, oRedstoneData = 63, oTextureData = 0, oUpdateData = 0, mLagWarningCount = 0;
@@ -200,6 +200,7 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
 
     @Override
     public void updateEntity() {
+        worldObj.theProfiler.startSection("GT5 BaseMetaPipeEntity::updateEntity");
         super.updateEntity();
 
         if (!hasValidMetaTileEntity()) {
@@ -264,7 +265,9 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
                         }
                     case 8:
                         tCode = 9;
+                        worldObj.theProfiler.startSection("onPreTick");
                         mMetaTileEntity.onPreTick(this, mTickTimer);
+                        worldObj.theProfiler.endSection();
                         if (!hasValidMetaTileEntity()) return;
                     case 9:
                         tCode++;
@@ -286,7 +289,9 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
                         }
                     case 10:
                         tCode++;
+                        worldObj.theProfiler.startSection("onPostTick");
                         mMetaTileEntity.onPostTick(this, mTickTimer);
+                        worldObj.theProfiler.endSection();
                         if (!hasValidMetaTileEntity()) return;
                     case 11:
                         tCode++;
@@ -322,15 +327,16 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
             e.printStackTrace(GT_Log.err);
         }
 
-        if (isServerSide() && hasValidMetaTileEntity()) {
-            tTime = System.nanoTime() - tTime;
-            if (mTimeStatistics.length > 0)
-                mTimeStatistics[mTimeStatisticsIndex = (mTimeStatisticsIndex + 1) % mTimeStatistics.length] = (int) tTime;
-            if (tTime > 0 && tTime > (GregTech_API.MILLISECOND_THRESHOLD_UNTIL_LAG_WARNING*1000000) && mTickTimer > 1000 && getMetaTileEntity().doTickProfilingMessageDuringThisTick() && mLagWarningCount++ < 10)
-                GT_FML_LOGGER.warn("WARNING: Possible Lag Source at ["+xCoord+","+yCoord+","+zCoord+"] in Dimension "+worldObj.provider.dimensionId+" with "+tTime+" ns caused by an instance of "+getMetaTileEntity().getClass());
-        }
+        //if (isServerSide() && hasValidMetaTileEntity()) {
+        //    tTime = System.nanoTime() - tTime;
+        //    if (mTimeStatistics.length > 0)
+        //        mTimeStatistics[mTimeStatisticsIndex = (mTimeStatisticsIndex + 1) % mTimeStatistics.length] = (int) tTime;
+        //    if (tTime > 0 && tTime > (GregTech_API.MILLISECOND_THRESHOLD_UNTIL_LAG_WARNING*1000000) && mTickTimer > 1000 && getMetaTileEntity().doTickProfilingMessageDuringThisTick() && mLagWarningCount++ < 10)
+        //        GT_FML_LOGGER.warn("WARNING: Possible Lag Source at ["+xCoord+","+yCoord+","+zCoord+"] in Dimension "+worldObj.provider.dimensionId+" with "+tTime+" ns caused by an instance of "+getMetaTileEntity().getClass());
+        //}
 
         mWorkUpdate = mInventoryChanged = false;
+        worldObj.theProfiler.endSection();
     }
 
     @Override
@@ -1222,7 +1228,7 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
         if (!canAccessData() || getCoverIDAtSide(aSide) != 0) return false;
         return mMetaTileEntity.injectRotationalEnergy(aSide, aSpeed, aEnergy);
     }
-    
+
     private boolean canMoveFluidOnSide(ForgeDirection aSide, Fluid aFluid, boolean isFill) {
         if (aSide == ForgeDirection.UNKNOWN)
             return true;
@@ -1281,7 +1287,7 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
     @Override
     public FluidTankInfo[] getTankInfo(ForgeDirection aSide) {
         if (canAccessData()
-            && (aSide == ForgeDirection.UNKNOWN 
+            && (aSide == ForgeDirection.UNKNOWN
                 || (mMetaTileEntity.isLiquidInput((byte) aSide.ordinal())
                     && getCoverBehaviorAtSide((byte) aSide.ordinal()).letsFluidIn((byte) aSide.ordinal(), getCoverIDAtSide((byte) aSide.ordinal()), getCoverDataAtSide((byte) aSide.ordinal()), null, this))
                 || (mMetaTileEntity.isLiquidOutput((byte) aSide.ordinal()) && getCoverBehaviorAtSide((byte) aSide.ordinal()).letsFluidOut((byte) aSide.ordinal(), getCoverIDAtSide((byte) aSide.ordinal()), getCoverDataAtSide((byte) aSide.ordinal()), null, this))

@@ -81,6 +81,7 @@ public class GT_MetaTileEntity_Hatch_Output extends GT_MetaTileEntity_Hatch {
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         super.onPostTick(aBaseMetaTileEntity, aTick);
+        aBaseMetaTileEntity.getWorld().theProfiler.startSection("OutputHatch::onPostTick");
         if (aBaseMetaTileEntity.isServerSide() && aBaseMetaTileEntity.isAllowedToWork() && (aTick&0x7)==0) {
             IFluidHandler tTileEntity = aBaseMetaTileEntity.getITankContainerAtSide(aBaseMetaTileEntity.getFrontFacing());
             if (tTileEntity != null) {
@@ -97,6 +98,7 @@ public class GT_MetaTileEntity_Hatch_Output extends GT_MetaTileEntity_Hatch {
                 }
             }
         }
+        aBaseMetaTileEntity.getWorld().theProfiler.endSection();
     }
 
     @Override
@@ -167,7 +169,7 @@ public class GT_MetaTileEntity_Hatch_Output extends GT_MetaTileEntity_Hatch {
         if (aPlayer.isSneaking()) {
         	mMode = (byte) ((mMode + 9) % 10);
         } else {
-            mMode = (byte) ((mMode + 1) % 10);        	
+            mMode = (byte) ((mMode + 1) % 10);
         }
         String inBrackets;
         switch (mMode) {
@@ -227,7 +229,7 @@ public class GT_MetaTileEntity_Hatch_Output extends GT_MetaTileEntity_Hatch {
                 break;
         }
     }
-    
+
     public String trans(String aKey, String aEnglish){
     	return GT_LanguageManager.addStringLocalization("Interaction_DESCRIPTION_Index_"+aKey, aEnglish, false);
     }
@@ -243,15 +245,15 @@ public class GT_MetaTileEntity_Hatch_Output extends GT_MetaTileEntity_Hatch {
     public boolean outputsItems() {
         return mMode % 4 < 2 && mMode != 9;
     }
-    
+
     public boolean isFluidLocked(){
     	return mMode == 8 || mMode == 9;
     }
-    
+
     public String getLockedFluidName() {
     	return lockedFluidName;
     }
-    
+
     public void setLockedFluidName(String lockedFluidName) {
     	this.lockedFluidName = lockedFluidName;
     }
@@ -260,7 +262,7 @@ public class GT_MetaTileEntity_Hatch_Output extends GT_MetaTileEntity_Hatch {
     public int getTankPressure() {
         return +100;
     }
-    
+
     @Override
     protected void onEmptyingContainerWhenEmpty() {
     	if (this.lockedFluidName == null && this.mFluid != null) {
