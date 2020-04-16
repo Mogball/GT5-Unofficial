@@ -272,6 +272,7 @@ public class BaseMetaTileEntity extends BaseTileEntity implements IGregTechTileE
 
     @Override
     public void updateEntity() {
+        worldObj.theProfiler.startSection("GT5 MetaTileEntity::updateEntity");
         super.updateEntity();
 
         if (!hasValidMetaTileEntity()) {
@@ -597,6 +598,8 @@ public class BaseMetaTileEntity extends BaseTileEntity implements IGregTechTileE
         }
 
         mWorkUpdate = mInventoryChanged = mRunningThroughTick = false;
+
+        worldObj.theProfiler.endSection();
     }
 
     @Override

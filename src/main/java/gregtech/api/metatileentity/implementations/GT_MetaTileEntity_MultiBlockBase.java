@@ -209,6 +209,7 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
 
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
+        aBaseMetaTileEntity.getWorld().theProfiler.startSection("GT5 MultiBlockBase::onPostTick");
         if (aBaseMetaTileEntity.isServerSide()) {
             if (mEfficiency < 0) mEfficiency = 0;
             if (--mUpdate == 0 || --mStartUpCheck == 0) {
@@ -307,6 +308,7 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
             for(GT_MetaTileEntity_Hatch_Muffler aMuffler:mMufflerHatches)
                 aMuffler.getBaseMetaTileEntity().setActive(active);
         }
+        aBaseMetaTileEntity.getWorld().theProfiler.endSection();
     }
 
     public boolean polluteEnvironment(int aPollutionLevel) {
@@ -679,12 +681,12 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
         }
         return false;
     }
-    
+
     public boolean addOutput(FluidStack aLiquid) {
         if (aLiquid == null) return false;
         FluidStack copiedFluidStack = aLiquid.copy();
         if (!dumpFluid(copiedFluidStack, true)){
-            dumpFluid(copiedFluidStack, false);        	
+            dumpFluid(copiedFluidStack, false);
         }
         return false;
     }
@@ -961,7 +963,7 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
         }
 
         return new String[]{
-        /* 1*/       	StatCollector.translateToLocal("GT5U.multiblock.Progress")+": " + EnumChatFormatting.GREEN + Integer.toString(mProgresstime/20) + EnumChatFormatting.RESET +" s / " 
+        /* 1*/       	StatCollector.translateToLocal("GT5U.multiblock.Progress")+": " + EnumChatFormatting.GREEN + Integer.toString(mProgresstime/20) + EnumChatFormatting.RESET +" s / "
                 		+ EnumChatFormatting.YELLOW + Integer.toString(mMaxProgresstime/20) + EnumChatFormatting.RESET +" s",
          /* 2*/         StatCollector.translateToLocal("GT5U.multiblock.energy")+": " +
         		 		EnumChatFormatting.GREEN + Long.toString(storedEnergy) + EnumChatFormatting.RESET +" EU / "+
