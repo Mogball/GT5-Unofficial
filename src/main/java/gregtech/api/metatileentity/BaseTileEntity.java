@@ -21,6 +21,8 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.IFluidHandler;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import static gregtech.api.enums.GT_Values.GT;
 import static gregtech.api.enums.GT_Values.NW;
 
@@ -118,7 +120,7 @@ public abstract class BaseTileEntity extends TileEntity implements IHasWorldObje
 
     @Override
     public final int getRandomNumber(int aRange) {
-        return worldObj.rand.nextInt(aRange);
+        return ThreadLocalRandom.current().nextInt(aRange);
     }
 
     @Override

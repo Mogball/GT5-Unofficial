@@ -386,7 +386,9 @@ public class BaseMetaTileEntity extends BaseTileEntity implements IGregTechTileE
                         oRedstone = mRedstone;
                         issueBlockUpdate();
                     }
-                    if (mTickTimer == 10) joinEnet();
+                    if (mTickTimer == 10) {
+                        joinEnet();
+                    }
 
                     if (xCoord != oX || yCoord != oY || zCoord != oZ) {
                         oX = xCoord;
@@ -408,77 +410,35 @@ public class BaseMetaTileEntity extends BaseTileEntity implements IGregTechTileE
                     if (mTickTimer > 20 && mMetaTileEntity.isElectric()) {
                         mAcceptedAmperes = 0;
 
-                        if (getOutputVoltage() != oOutput) {
-                            oOutput = getOutputVoltage();
-                        }
+                        oOutput = getOutputVoltage();
 
                         if (mMetaTileEntity.isEnetOutput() || mMetaTileEntity.isEnetInput()) {
-                            for (byte i = 0; i < 6; i++) {
-                                boolean
-                                        temp = isEnergyInputSide(i);
-                                if (temp != mActiveEUInputs[i]) {
-                                    mActiveEUInputs[i] = temp;
-                                }
-                                temp = isEnergyOutputSide(i);
-                                if (temp != mActiveEUOutputs[i]) {
-                                    mActiveEUOutputs[i] = temp;
-                                }
+                            for (byte i = 0; i < 6; ++i) {
+                                mActiveEUInputs[i] = isEnergyInputSide(i);
+                                mActiveEUOutputs[i] = isEnergyOutputSide(i);
                             }
                         }
 
-
                         if (mMetaTileEntity.isEnetOutput() && oOutput > 0) {
-                            long tOutputVoltage = Math.max(oOutput, oOutput + (1 << GT_Utility.getTier(oOutput))), tUsableAmperage = Math.min(getOutputAmperage(), (getStoredEU() - mMetaTileEntity.getMinimumStoredEU()) / tOutputVoltage);
+                            long tOutputVoltage = Math.max(oOutput, oOutput + (1 << GT_Utility.getTier(oOutput)));
+                            long tUsableAmperage = Math.min(getOutputAmperage(), (getStoredEU() - mMetaTileEntity.getMinimumStoredEU()) / tOutputVoltage);
                             if (tUsableAmperage > 0) {
                                 long tEU = tOutputVoltage * Util.emitEnergyToNetwork(oOutput, tUsableAmperage, this);
                                 mAverageEUOutput[mAverageEUOutputIndex] += tEU;
                                 decreaseStoredEU(tEU, true);
                             }
                         }
-                        if (getEUCapacity() > 0) {
-                            if (GregTech_API.sMachineFireExplosions && getRandomNumber(1000) == 0) {
-                                Block tBlock = getBlockAtSide((byte) getRandomNumber(6));
-                                if (tBlock instanceof BlockFire) doEnergyExplosion();
-                            }
 
-                            if (!hasValidMetaTileEntity()) {
+                        // Check for explosions every 10 ticks
+                        if (mTickTimer % 10 == 0 && getEUCapacity() > 0) {
+                            if (tryFireExplosion()) {
                                 mRunningThroughTick = false;
                                 return;
                             }
-
-                            if (getRandomNumber(1000) == 0) {
-                                if ((getCoverIDAtSide((byte) 1) == 0 && worldObj.getPrecipitationHeight(xCoord, zCoord) - 2 < yCoord)
-                                        || (getCoverIDAtSide((byte) 2) == 0 && worldObj.getPrecipitationHeight(xCoord, zCoord - 1) - 1 < yCoord)
-                                        || (getCoverIDAtSide((byte) 3) == 0 && worldObj.getPrecipitationHeight(xCoord, zCoord + 1) - 1 < yCoord)
-                                        || (getCoverIDAtSide((byte) 4) == 0 && worldObj.getPrecipitationHeight(xCoord - 1, zCoord) - 1 < yCoord)
-                                        || (getCoverIDAtSide((byte) 5) == 0 && worldObj.getPrecipitationHeight(xCoord + 1, zCoord) - 1 < yCoord)) {
-                                    if (GregTech_API.sMachineRainExplosions && worldObj.isRaining() && getBiome().rainfall > 0) {
-                                        if (getRandomNumber(10) == 0) {
-                                            try {
-                                                GT_Mod.achievements.issueAchievement(this.getWorldObj().getPlayerEntityByName(mOwnerName), "badweather");
-                                            } catch (Exception e) {
-
-                                            }
-                                            GT_Log.exp.println("Machine at: " + this.getXCoord() + " | " + this.getYCoord() + " | " + this.getZCoord() + " DIMID: " + this.worldObj.provider.dimensionId + " explosion due to rain!");
-                                            doEnergyExplosion();
-                                        } else {
-                                            GT_Log.exp.println("Machine at: " + this.getXCoord() + " | " + this.getYCoord() + " | " + this.getZCoord() + " DIMID: " + this.worldObj.provider.dimensionId + "  set to Fire due to rain!");
-                                            setOnFire();
-                                        }
-                                    }
-                                    if (!hasValidMetaTileEntity()) {
-                                        mRunningThroughTick = false;
-                                        return;
-                                    }
-                                    if (GregTech_API.sMachineThunderExplosions && worldObj.isThundering() && getBiome().rainfall > 0 && getRandomNumber(3) == 0) {
-                                        try {
-                                            GT_Mod.achievements.issueAchievement(this.getWorldObj().getPlayerEntityByName(mOwnerName), "badweather");
-                                        } catch (Exception e) {
-
-                                        }
-                                        GT_Log.exp.println("Machine at: " + this.getXCoord() + " | " + this.getYCoord() + " | " + this.getZCoord() + " DIMID: " + this.worldObj.provider.dimensionId + " explosion due to Thunderstorm!");
-                                        doEnergyExplosion();
-                                    }
+                            if (shouldTryWeatherExplosion() && isExposedToRain() && getRandomNumber(128) == 0) {
+                                if (tryRainExplosion() || tryThunderExplosion()) {
+                                    mRunningThroughTick = false;
+                                    return;
                                 }
                             }
                         }
@@ -1257,7 +1217,7 @@ public class BaseMetaTileEntity extends BaseTileEntity implements IGregTechTileE
             }
             if (mRecipeStuff != null) {
                 for (int i = 0; i < 9; i++) {
-                    if (this.getRandomNumber(100) < 50) {
+                    if (this.getRandomNumber(128) < 64) {
                         dropItems(GT_Utility.loadItem(mRecipeStuff, "Ingredient." + i));
                     }
                 }
@@ -2158,6 +2118,67 @@ public class BaseMetaTileEntity extends BaseTileEntity implements IGregTechTileE
             indexShift += newOutputSize - oldOutputSize;
         }
         return slotIndex + indexShift;
+    }
+
+    private boolean shouldTryWeatherExplosion() {
+        return (GregTech_API.sMachineRainExplosions || GregTech_API.sMachineThunderExplosions) &&
+                (worldObj.isRaining() || worldObj.isThundering()) && getBiome().rainfall > 0;
+    }
+
+    private boolean isExposedToRain() {
+        return (getCoverIDAtSide((byte) 1) == 0 && worldObj.getPrecipitationHeight(xCoord, zCoord) - 1 <= yCoord)
+                || (getCoverIDAtSide((byte) 2) == 0 && worldObj.getPrecipitationHeight(xCoord, zCoord - 1) <= yCoord)
+                || (getCoverIDAtSide((byte) 3) == 0 && worldObj.getPrecipitationHeight(xCoord, zCoord + 1) <= yCoord)
+                || (getCoverIDAtSide((byte) 4) == 0 && worldObj.getPrecipitationHeight(xCoord - 1, zCoord) <= yCoord)
+                || (getCoverIDAtSide((byte) 5) == 0 && worldObj.getPrecipitationHeight(xCoord + 1, zCoord) <= yCoord);
+    }
+
+    private boolean tryRainExplosion() {
+        if (!GregTech_API.sMachineRainExplosions || !worldObj.isRaining()) {
+            return false;
+        }
+        if (getRandomNumber(8) == 0) {
+            try {
+                GT_Mod.achievements.issueAchievement(this.getWorldObj().getPlayerEntityByName(mOwnerName), "badweather");
+            } catch (Exception ignored) {
+            }
+            GT_Log.exp.println("Machine at: " + this.getXCoord() + " | " + this.getYCoord() + " | " + this.getZCoord() + " DIMID: " + this.worldObj.provider.dimensionId + " explosion due to rain!");
+            doEnergyExplosion();
+            return true;
+        } else {
+            GT_Log.exp.println("Machine at: " + this.getXCoord() + " | " + this.getYCoord() + " | " + this.getZCoord() + " DIMID: " + this.worldObj.provider.dimensionId + "  set to Fire due to rain!");
+            setOnFire();
+        }
+        return false;
+    }
+
+    private boolean tryThunderExplosion() {
+        if (!GregTech_API.sMachineThunderExplosions || !worldObj.isThundering()) {
+            return false;
+        }
+        if (getRandomNumber(4) == 0) {
+            try {
+                GT_Mod.achievements.issueAchievement(this.getWorldObj().getPlayerEntityByName(mOwnerName), "badweather");
+            } catch (Exception ignored) {
+            }
+            GT_Log.exp.println("Machine at: " + this.getXCoord() + " | " + this.getYCoord() + " | " + this.getZCoord() + " DIMID: " + this.worldObj.provider.dimensionId + " explosion due to Thunderstorm!");
+            doEnergyExplosion();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean tryFireExplosion() {
+        if (!GregTech_API.sMachineFireExplosions) {
+            return false;
+        }
+        for (byte i = 0; i < 6; ++i) {
+            if (getBlockAtSide(i) instanceof BlockFire && getRandomNumber(128) == 0) {
+                doEnergyExplosion();
+                return true;
+            }
+        }
+        return false;
     }
 }
 
