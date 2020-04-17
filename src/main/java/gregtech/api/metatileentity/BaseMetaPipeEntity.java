@@ -259,7 +259,7 @@ public class BaseMetaPipeEntity extends BaseTileEntity implements IGregTechTileE
                                     }
                                 }
                             mConnections = (byte) (mMetaTileEntity.mConnections | (mConnections & ~63));
-                            if ((mConnections & -64) == 64 && getRandomNumber(1000) == 0) {
+                            if ((mConnections & -64) == 64 && getRandomNumber(1024) == 0) {
                                 mConnections = (byte) ((mConnections & ~64) | -128);
                             }
                         }

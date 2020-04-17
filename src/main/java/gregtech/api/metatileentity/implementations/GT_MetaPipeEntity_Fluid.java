@@ -255,7 +255,7 @@ public class GT_MetaPipeEntity_Fluid extends MetaPipeEntity {
         if (tFluid != null && tFluid.amount > 0) {
             int tTemperature = tFluid.getFluid().getTemperature(tFluid);
             if (tTemperature > mHeatResistance) {
-                if (aBaseMetaTileEntity.getRandomNumber(100) == 0) {
+                if (aBaseMetaTileEntity.getRandomNumber(128) == 0) {
                     // Poof
                     GT_Log.exp.println("Set Pipe to Fire due to to low heat resistance at "+aBaseMetaTileEntity.getXCoord()+ " | "+aBaseMetaTileEntity.getYCoord()+ " | "+aBaseMetaTileEntity.getZCoord()+ " DIMID: "+aBaseMetaTileEntity.getWorld().provider.dimensionId);
                     aBaseMetaTileEntity.setToFire();
